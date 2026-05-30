@@ -1,0 +1,231 @@
+#----------------------- Initialization------------------------------#
+
+units		real
+boundary	p p p
+atom_style	full
+log 		poly.txt
+read_data	data_file.data
+
+
+
+
+neighbor 2.0 bin
+neigh_modify every 1 delay 0 check no 
+
+include "forcefield_file.txt"
+
+
+
+#-----------------------MINIMIZATION---------------------------------#
+
+
+min_style	cg
+thermo		1
+minimize	10e-10 10e-10 10000 10000
+min_modify dmax 0.2
+
+
+velocity all create 300 12345 dist gaussian
+
+#----------------------------Stage 1 ---------------------------------#
+
+
+#step 1 300K to 300K using NVT
+
+#dump dump_2 all custom 100 nvt_1.dump id mass type x y z ix iy iz vx vy vz 
+fix		2 all nvt temp 300 300 100  
+
+thermo_style	custom step temp density press
+thermo          1000
+timestep	1
+reset_timestep 	0
+run		100000
+
+unfix 2
+#undump dump_2
+
+
+write_restart restart_nvt.data
+
+################
+#step 2 300K to 300K using NPT
+
+#dump dump_2 all custom 100 npt_1.dump id mass type x y z ix iy iz vx vy vz 
+
+
+fix		2 all npt temp 300 300 100 iso 1 1 1000 
+
+thermo_style	custom step temp density press
+thermo          1000
+timestep	1
+reset_timestep 	0
+run		200000
+
+unfix 2
+#undump dump_2
+
+write_restart restart_npt.data
+
+
+
+#************************************Cycle 1**********************************#
+
+
+
+#------------------step-1 300K to 700K using NVT-----------------#
+
+#dump dump_2 all custom 100 nvt_2.dump id mass type x y z ix iy iz vx vy vz 
+
+
+fix		1 all nvt temp 300 700 100  
+thermo_style	custom step temp density press
+thermo          1000
+timestep	1
+reset_timestep 	0
+run		100000
+
+unfix 1
+#undump dump_2
+
+
+#------------------step-2 700K to 300K using NVT----------------#
+
+
+#dump dump_2 all custom 100 nvt_3.dump id mass type x y z ix iy iz vx vy vz 
+
+
+fix		1 all nvt temp 700 300 100 
+thermo_style	custom step temp density press
+thermo          1000
+timestep	1
+reset_timestep 	0
+run		100000
+
+unfix 1
+#undump dump_2
+#undump dump_3
+
+
+#------------------step-3 300K to 300K using NPT----------------#
+
+#dump dump_2 all custom 100 npt_2.dump id mass type x y z ix iy iz vx vy vz
+
+
+fix		1 all npt temp 300 300 100 iso 0 1 1000 
+thermo_style	custom step temp density press
+thermo          1000
+timestep	1
+reset_timestep 	0
+run		200000
+
+unfix 1
+#undump dump_2
+
+
+write_restart restart_cycle_1.data
+
+
+#************************************Cycle 2**********************************#
+
+
+
+#------------------step-1 300K to 700K using NVT-----------------#
+
+#dump dump_2 all custom 100 nvt_2.dump id mass type x y z ix iy iz vx vy vz 
+
+
+fix		1 all nvt temp 300 700 100  
+thermo_style	custom step temp density press
+thermo          1000
+timestep	1
+reset_timestep 	0
+run		100000
+
+unfix 1
+#undump dump_2
+
+
+#------------------step-2 700K to 300K using NVT----------------#
+
+
+#dump dump_2 all custom 100 nvt_3.dump id mass type x y z ix iy iz vx vy vz 
+
+
+fix		1 all nvt temp 700 300 100 
+thermo_style	custom step temp density press
+thermo          1000
+timestep	1
+reset_timestep 	0
+run		100000
+
+unfix 1
+#undump dump_2
+#undump dump_3
+
+
+#------------------step-3 300K to 300K using NPT----------------#
+
+#dump dump_2 all custom 100 npt_2.dump id mass type x y z ix iy iz vx vy vz
+
+
+fix		1 all npt temp 300 300 100 iso 0 1 1000 
+thermo_style	custom step temp density press
+thermo          1000
+timestep	1
+reset_timestep 	0
+run		200000
+
+unfix 1
+#undump dump_2
+
+
+write_restart restart_cycle_2.data
+
+
+
+#*******************NPT 500 ps*******************#
+
+#dump dump_2 all custom 100 npt_2.dump id mass type x y z ix iy iz vx vy vz
+
+
+fix		1 all npt temp 300 300 100 iso 0 1 1000 
+thermo_style	custom step temp density press
+thermo          1000
+timestep	1
+reset_timestep 	0
+run		500000
+
+unfix 1
+#undump dump_2
+
+
+write_restart npt_500ps.data
+
+
+
+#**************************Production stage**************************#
+
+
+
+#dump dump_2 all custom 100 npt_production.dump id mass type x y z ix iy iz vx vy vz
+
+
+fix		1 all npt temp 300 300 100 iso 0 1 1000 
+
+#-----------------------RDF------------------------
+
+
+compute rdf_1 all rdf 100 1 2 cutoff 10.0
+fix rdf_c all ave/time 10 100 10000 c_rdf_1[1] c_rdf_1[2] c_rdf_1[3] file carbon_hydrogen.txt mode vector
+
+
+thermo_style	custom step temp density press pe
+thermo          1000
+timestep	1
+run		1000000
+
+unfix 1
+#undump dump_2
+
+
+write_restart production_stage.data
